@@ -1,15 +1,20 @@
 -- =================================================
--- 50 DAYS ON A RAFT - COMBAT & SURVIVAL SCRIPT
+-- 50 DAYS ON A RAFT - COMBAT & SURVIVAL (FINAL FIX)
 -- =================================================
 
 -----------------------
--- BASIC SETUP
+-- SERVICES
 -----------------------
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
-local player = Players.LocalPlayer
+local UserInputService = game:GetService("UserInputService")
 
+-----------------------
+-- PLAYER SETUP
+-----------------------
+local player = Players.LocalPlayer
 local char, hrp, hum
+
 local function bindChar()
     char = player.Character or player.CharacterAdded:Wait()
     hrp = char:WaitForChild("HumanoidRootPart")
@@ -19,26 +24,28 @@ bindChar()
 player.CharacterAdded:Connect(bindChar)
 
 -----------------------
--- SETTINGS (EDITABLE)
+-- SETTINGS
 -----------------------
-local KILL_RADIUS = 15        -- jarak auto kill (studs)
-local KILL_INTERVAL = 0.2     -- kecepatan cek musuh
+local KILL_RADIUS = 15        -- jarak auto kill
+local KILL_DELAY = 0.2
 local ENABLE_ANTIDAMAGE = true
 
 -----------------------
 -- STATE
 -----------------------
 local AutoKill = false
-local SpeedValue = 16 -- default Roblox
 
 -----------------------
--- UI
+-- UI ROOT
 -----------------------
 local gui = Instance.new("ScreenGui")
-gui.Name = "RaftCombatUI"
+gui.Name = "RaftCombatFinal"
 gui.ResetOnSpawn = false
 gui.Parent = player:WaitForChild("PlayerGui")
 
+-----------------------
+-- TOGGLE BUTTON
+-----------------------
 local toggleBtn = Instance.new("TextButton")
 toggleBtn.Size = UDim2.new(0,55,0,55)
 toggleBtn.Position = UDim2.new(0,10,0.5,-27)
@@ -51,9 +58,12 @@ toggleBtn.Active = true
 toggleBtn.Draggable = true
 toggleBtn.Parent = gui
 
+-----------------------
+-- MAIN FRAME
+-----------------------
 local frame = Instance.new("Frame")
-frame.Size = UDim2.new(0,260,0,210)
-frame.Position = UDim2.new(0,80,0.5,-105)
+frame.Size = UDim2.new(0,260,0,220)
+frame.Position = UDim2.new(0,80,0.5,-110)
 frame.BackgroundColor3 = Color3.fromRGB(20,20,20)
 frame.Visible = false
 frame.BorderSizePixel = 0
@@ -69,7 +79,9 @@ title.TextSize = 16
 title.TextColor3 = Color3.new(1,1,1)
 title.Parent = frame
 
--- Auto Kill Button
+-----------------------
+-- AUTO KILL BUTTON
+-----------------------
 local killBtn = Instance.new("TextButton")
 killBtn.Size = UDim2.new(1,-20,0,40)
 killBtn.Position = UDim2.new(0,10,0,45)
@@ -82,9 +94,11 @@ killBtn.BorderSizePixel = 0
 killBtn.Parent = frame
 Instance.new("UICorner", killBtn).CornerRadius = UDim.new(0,8)
 
--- Speed Label
+-----------------------
+-- SPEED LABEL
+-----------------------
 local speedLabel = Instance.new("TextLabel")
-speedLabel.Size = UDim2.new(1,-20,0,25)
+speedLabel.Size = UDim2.new(1,-20,0,22)
 speedLabel.Position = UDim2.new(0,10,0,95)
 speedLabel.BackgroundTransparency = 1
 speedLabel.Text = "Speed: 16"
@@ -93,21 +107,23 @@ speedLabel.TextSize = 13
 speedLabel.TextColor3 = Color3.new(1,1,1)
 speedLabel.Parent = frame
 
--- Speed Slider (0-100)
+-----------------------
+-- SPEED SLIDER
+-----------------------
 local sliderBg = Instance.new("Frame")
-sliderBg.Size = UDim2.new(1,-20,0,12)
+sliderBg.Size = UDim2.new(1,-20,0,14)
 sliderBg.Position = UDim2.new(0,10,0,125)
 sliderBg.BackgroundColor3 = Color3.fromRGB(60,60,60)
 sliderBg.BorderSizePixel = 0
 sliderBg.Parent = frame
-Instance.new("UICorner", sliderBg).CornerRadius = UDim.new(0,6)
+Instance.new("UICorner", sliderBg).CornerRadius = UDim.new(0,7)
 
 local sliderFill = Instance.new("Frame")
-sliderFill.Size = UDim2.new(0,0,1,0)
+sliderFill.Size = UDim2.new(0.16,0,1,0)
 sliderFill.BackgroundColor3 = Color3.fromRGB(120,180,255)
 sliderFill.BorderSizePixel = 0
 sliderFill.Parent = sliderBg
-Instance.new("UICorner", sliderFill).CornerRadius = UDim.new(0,6)
+Instance.new("UICorner", sliderFill).CornerRadius = UDim.new(0,7)
 
 -----------------------
 -- UI LOGIC
@@ -121,27 +137,48 @@ killBtn.MouseButton1Click:Connect(function()
     killBtn.Text = AutoKill and "Auto Kill : ON" or "Auto Kill : OFF"
 end)
 
--- Slider drag
+-----------------------
+-- SPEED SLIDER LOGIC (FIXED)
+-----------------------
 local dragging = false
-sliderBg.InputBegan:Connect(function(i)
-    if i.UserInputType == Enum.UserInputType.MouseButton1 then dragging = true end
+
+local function updateSpeed(inputX)
+    local pos = math.clamp(
+        (inputX - sliderBg.AbsolutePosition.X) / sliderBg.AbsoluteSize.X,
+        0, 1
+    )
+    local speed = math.floor(pos * 100)
+    sliderFill.Size = UDim2.new(pos,0,1,0)
+    speedLabel.Text = "Speed: "..speed
+    hum.WalkSpeed = speed
+end
+
+sliderBg.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1
+    or input.UserInputType == Enum.UserInputType.Touch then
+        dragging = true
+        updateSpeed(input.Position.X)
+    end
 end)
-sliderBg.InputEnded:Connect(function(i)
-    if i.UserInputType == Enum.UserInputType.MouseButton1 then dragging = false end
+
+sliderBg.InputEnded:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1
+    or input.UserInputType == Enum.UserInputType.Touch then
+        dragging = false
+    end
 end)
-RunService.RenderStepped:Connect(function()
-    if dragging then
-        local mouse = game:GetService("UserInputService"):GetMouseLocation().X
-        local pos = math.clamp((mouse - sliderBg.AbsolutePosition.X) / sliderBg.AbsoluteSize.X, 0, 1)
-        sliderFill.Size = UDim2.new(pos,0,1,0)
-        SpeedValue = math.floor(pos * 100)
-        speedLabel.Text = "Speed: "..SpeedValue
-        hum.WalkSpeed = SpeedValue
+
+UserInputService.InputChanged:Connect(function(input)
+    if dragging and (
+        input.UserInputType == Enum.UserInputType.MouseMovement
+        or input.UserInputType == Enum.UserInputType.Touch
+    ) then
+        updateSpeed(input.Position.X)
     end
 end)
 
 -----------------------
--- ANTI DAMAGE (REALISTIC)
+-- ANTI DAMAGE
 -----------------------
 if ENABLE_ANTIDAMAGE then
     hum.HealthChanged:Connect(function(hp)
@@ -152,18 +189,16 @@ if ENABLE_ANTIDAMAGE then
 end
 
 -----------------------
--- AUTO KILL (NEARBY)
+-- AUTO KILL LOOP
 -----------------------
 task.spawn(function()
-    while task.wait(KILL_INTERVAL) do
+    while task.wait(KILL_DELAY) do
         if AutoKill and hrp then
             for _,npc in pairs(workspace:GetDescendants()) do
                 local nh = npc:FindFirstChildOfClass("Humanoid")
                 local nhrp = npc:FindFirstChild("HumanoidRootPart")
                 if nh and nhrp and npc ~= char and nh.Health > 0 then
-                    local dist = (nhrp.Position - hrp.Position).Magnitude
-                    if dist <= KILL_RADIUS then
-                        -- attempt client-side damage
+                    if (nhrp.Position - hrp.Position).Magnitude <= KILL_RADIUS then
                         pcall(function()
                             nh.Health = 0
                         end)
@@ -174,12 +209,15 @@ task.spawn(function()
     end
 end)
 
+-----------------------
+-- NOTIFICATION
+-----------------------
 pcall(function()
     game.StarterGui:SetCore("SendNotification", {
         Title = "Loaded",
-        Text = "⚔️ Auto Kill | ❤️ Anti-Damage | ⚡ Speed",
+        Text = "⚔️ Auto Kill | ❤️ Anti Damage | ⚡ Speed 0-100",
         Duration = 5
     })
 end)
 
-print("✅ Combat & Survival script loaded")
+print("✅ FINAL COMBAT SCRIPT LOADED")

@@ -1,5 +1,5 @@
 -- =====================================================
--- 50 DAYS ON A RAFT - COLLECT ONLY (VIDEO FIX)
+-- 50 DAYS ON A RAFT - AUTO COLLECT LOOP (SAFE VERSION)
 -- =====================================================
 
 -- ===== SERVICES =====
@@ -15,22 +15,27 @@ end
 bindChar()
 player.CharacterAdded:Connect(bindChar)
 
+-- ===== STATE =====
+local AutoCollect = false
+local Busy = false
+
 -- ===== SETTINGS =====
 local STEP_RADIUS = {20, 40, 70, 100, 150}
 local TELEPORT_DELAY = 0.35   -- mobile safe
 local ACTION_DELAY = 0.4
+local LOOP_DELAY = 1.0
 
 -- =====================================================
 -- GUI
 -- =====================================================
 local gui = Instance.new("ScreenGui")
-gui.Name = "RaftCollectUI"
+gui.Name = "RaftAutoCollectUI"
 gui.ResetOnSpawn = false
 gui.Parent = player:WaitForChild("PlayerGui")
 
 local frame = Instance.new("Frame", gui)
-frame.Size = UDim2.new(0,260,0,230)
-frame.Position = UDim2.new(0,20,0.5,-115)
+frame.Size = UDim2.new(0,260,0,170)
+frame.Position = UDim2.new(0,20,0.5,-85)
 frame.BackgroundColor3 = Color3.fromRGB(20,20,20)
 frame.BorderSizePixel = 0
 Instance.new("UICorner", frame).CornerRadius = UDim.new(0,12)
@@ -43,27 +48,28 @@ title.Font = Enum.Font.GothamBold
 title.TextSize = 16
 title.TextColor3 = Color3.new(1,1,1)
 
-local function makeBtn(text, y)
-    local b = Instance.new("TextButton", frame)
-    b.Size = UDim2.new(1,-20,0,40)
-    b.Position = UDim2.new(0,10,0,y)
-    b.Text = text
-    b.Font = Enum.Font.Gotham
-    b.TextSize = 14
-    b.BackgroundColor3 = Color3.fromRGB(40,40,40)
-    b.TextColor3 = Color3.new(1,1,1)
-    b.BorderSizePixel = 0
-    Instance.new("UICorner", b).CornerRadius = UDim.new(0,8)
-    return b
-end
+local autoBtn = Instance.new("TextButton", frame)
+autoBtn.Size = UDim2.new(1,-20,0,45)
+autoBtn.Position = UDim2.new(0,10,0,55)
+autoBtn.Text = "Auto Collect : OFF"
+autoBtn.Font = Enum.Font.Gotham
+autoBtn.TextSize = 14
+autoBtn.BackgroundColor3 = Color3.fromRGB(40,40,40)
+autoBtn.TextColor3 = Color3.new(1,1,1)
+autoBtn.BorderSizePixel = 0
+Instance.new("UICorner", autoBtn).CornerRadius = UDim.new(0,8)
 
-local btnA = makeBtn("A - Collect Loot", 50)
-local btnB = makeBtn("B - Disabled", 95)
-local btnC = makeBtn("C - Disabled", 140)
-local btnD = makeBtn("D - Collect ALL", 185)
+local status = Instance.new("TextLabel", frame)
+status.Size = UDim2.new(1,-20,0,30)
+status.Position = UDim2.new(0,10,0,110)
+status.BackgroundTransparency = 1
+status.Text = "Status : Idle"
+status.Font = Enum.Font.Gotham
+status.TextSize = 13
+status.TextColor3 = Color3.fromRGB(200,200,200)
 
 -- =====================================================
--- CORE FUNCTIONS (SESUI VIDEO)
+-- CORE FUNCTIONS
 -- =====================================================
 
 local function getBasePart(prompt)
@@ -78,54 +84,62 @@ local function getBasePart(prompt)
     end
 end
 
--- ===== COLLECT ONLY (TIDAK OPEN BENCH) =====
-local function collectOnly()
-    task.spawn(function()
-        if not hrp then return end
+local function collectNearby()
+    if Busy or not hrp then return end
+    Busy = true
+    status.Text = "Status : Collecting..."
 
-        for _,radius in ipairs(STEP_RADIUS) do
-            for _,p in ipairs(workspace:GetDescendants()) do
-                if p:IsA("ProximityPrompt")
-                and p.Enabled
-                and p.ActionText == "Collect" then
+    for _,radius in ipairs(STEP_RADIUS) do
+        if not AutoCollect then break end
 
-                    local part = getBasePart(p)
-                    if part then
-                        local dist = (part.Position - hrp.Position).Magnitude
-                        if dist <= radius then
-                            pcall(function()
-                                -- teleport nempel ke item
-                                hrp.CFrame = part.CFrame * CFrame.new(0,0,-0.5)
-                                task.wait(TELEPORT_DELAY)
+        for _,p in ipairs(workspace:GetDescendants()) do
+            if not AutoCollect then break end
 
-                                fireproximityprompt(p, p.HoldDuration)
-                                task.wait(ACTION_DELAY)
-                            end)
-                        end
+            if p:IsA("ProximityPrompt")
+            and p.Enabled
+            and p.ActionText == "Collect" then
+
+                local part = getBasePart(p)
+                if part then
+                    local dist = (part.Position - hrp.Position).Magnitude
+                    if dist <= radius then
+                        pcall(function()
+                            hrp.CFrame = part.CFrame * CFrame.new(0,0,-0.5)
+                            task.wait(TELEPORT_DELAY)
+
+                            fireproximityprompt(p, p.HoldDuration)
+                            task.wait(ACTION_DELAY)
+                        end)
                     end
                 end
             end
-            task.wait(0.3)
         end
-    end)
+        task.wait(0.25)
+    end
+
+    Busy = false
+    status.Text = "Status : Idle"
 end
 
 -- =====================================================
--- BUTTON LOGIC
+-- MAIN AUTO LOOP
 -- =====================================================
-
--- A - COLLECT SAJA
-btnA.MouseButton1Click:Connect(function()
-    collectOnly()
+task.spawn(function()
+    while task.wait(LOOP_DELAY) do
+        if AutoCollect and not Busy then
+            collectNearby()
+        end
+    end
 end)
 
--- B & C DIMATIKAN (BIAR TIDAK GANGGU)
-btnB.AutoButtonColor = false
-btnC.AutoButtonColor = false
-
--- D - SAMA SEPERTI A (COLLECT ALL YANG VALID)
-btnD.MouseButton1Click:Connect(function()
-    collectOnly()
+-- =====================================================
+-- BUTTON
+-- =====================================================
+autoBtn.MouseButton1Click:Connect(function()
+    AutoCollect = not AutoCollect
+    autoBtn.Text = AutoCollect and "Auto Collect : ON" or "Auto Collect : OFF"
+    status.Text = AutoCollect and "Status : Running..." or "Status : Idle"
+    Busy = false
 end)
 
-print("✅ 50 Days on a Raft - COLLECT ONLY SCRIPT LOADED")
+print("✅ 50 Days on a Raft - AUTO COLLECT LOOP LOADED")

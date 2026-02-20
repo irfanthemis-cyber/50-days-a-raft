@@ -1,5 +1,5 @@
 -- =====================================================
--- SPEED (0-100) + GOD MODE + TOGGLE UI
+-- SPEED (0-100) + GOD MODE + ANCHOR TOGGLE
 -- =====================================================
 
 local Players = game:GetService("Players")
@@ -27,22 +27,22 @@ local CurrentSpeed = 16
 -- GUI
 -- =====================================================
 local gui = Instance.new("ScreenGui", player.PlayerGui)
-gui.Name = "SpeedGodToggleUI"
+gui.Name = "AnchorSpeedGodUI"
 gui.ResetOnSpawn = false
 
--- ===== TOGGLE BUTTON (SELALU TAMPIL) =====
-local toggleBtn = Instance.new("TextButton", gui)
-toggleBtn.Size = UDim2.new(0,45,0,45)
-toggleBtn.Position = UDim2.new(0,10,0.5,-22)
-toggleBtn.Text = "≡"
-toggleBtn.TextSize = 24
-toggleBtn.Font = Enum.Font.GothamBold
-toggleBtn.BackgroundColor3 = Color3.fromRGB(30,30,30)
-toggleBtn.TextColor3 = Color3.new(1,1,1)
-toggleBtn.BorderSizePixel = 0
-toggleBtn.Active = true
-toggleBtn.Draggable = true
-Instance.new("UICorner", toggleBtn).CornerRadius = UDim.new(1,0)
+-- ===== ANCHOR BUTTON (TOGGLE) =====
+local anchorBtn = Instance.new("TextButton", gui)
+anchorBtn.Size = UDim2.new(0,50,0,50)
+anchorBtn.Position = UDim2.new(0,10,0.5,-25)
+anchorBtn.Text = "⚓"
+anchorBtn.TextSize = 26
+anchorBtn.Font = Enum.Font.GothamBold
+anchorBtn.BackgroundColor3 = Color3.fromRGB(30,30,30)
+anchorBtn.TextColor3 = Color3.new(1,1,1)
+anchorBtn.BorderSizePixel = 0
+anchorBtn.Active = true
+anchorBtn.Draggable = true
+Instance.new("UICorner", anchorBtn).CornerRadius = UDim.new(1,0)
 
 -- ===== MAIN FRAME =====
 local frame = Instance.new("Frame", gui)
@@ -50,7 +50,7 @@ frame.Size = UDim2.new(0,270,0,260)
 frame.Position = UDim2.new(0,70,0.5,-130)
 frame.BackgroundColor3 = Color3.fromRGB(20,20,20)
 frame.BorderSizePixel = 0
-frame.Visible = true
+frame.Visible = false
 Instance.new("UICorner", frame).CornerRadius = UDim.new(0,12)
 
 local title = Instance.new("TextLabel", frame)
@@ -111,9 +111,9 @@ fill.BorderSizePixel = 0
 Instance.new("UICorner", fill).CornerRadius = UDim.new(1,0)
 
 -- =====================================================
--- TOGGLE UI LOGIC
+-- ANCHOR TOGGLE LOGIC
 -- =====================================================
-toggleBtn.MouseButton1Click:Connect(function()
+anchorBtn.MouseButton1Click:Connect(function()
     frame.Visible = not frame.Visible
 end)
 
@@ -168,7 +168,6 @@ end)
 godBtn.MouseButton1Click:Connect(function()
     GodMode = not GodMode
     godBtn.Text = GodMode and "God Mode : ON" or "God Mode : OFF"
-
     if GodMode then
         hum.Health = hum.MaxHealth
     end
@@ -186,4 +185,4 @@ RunService.Stepped:Connect(function()
     end
 end)
 
-print("✅ Speed + God Mode + Toggle UI Loaded")
+print("✅ Anchor Toggle UI Loaded")

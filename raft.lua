@@ -1,188 +1,185 @@
--- =====================================================
--- SPEED (0-100) + GOD MODE + ANCHOR TOGGLE
--- =====================================================
+-- =================================================
+-- 50 DAYS ON A RAFT - COMBAT & SURVIVAL SCRIPT
+-- =================================================
 
+-----------------------
+-- BASIC SETUP
+-----------------------
 local Players = game:GetService("Players")
-local UIS = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
-
 local player = Players.LocalPlayer
-local char, hum, hrp
 
--- ===== CHARACTER SAFE =====
+local char, hrp, hum
 local function bindChar()
     char = player.Character or player.CharacterAdded:Wait()
-    hum = char:WaitForChild("Humanoid")
     hrp = char:WaitForChild("HumanoidRootPart")
+    hum = char:WaitForChild("Humanoid")
 end
 bindChar()
 player.CharacterAdded:Connect(bindChar)
 
--- ===== STATE =====
-local SpeedOn = false
-local GodMode = false
-local CurrentSpeed = 16
+-----------------------
+-- SETTINGS (EDITABLE)
+-----------------------
+local KILL_RADIUS = 15        -- jarak auto kill (studs)
+local KILL_INTERVAL = 0.2     -- kecepatan cek musuh
+local ENABLE_ANTIDAMAGE = true
 
--- =====================================================
--- GUI
--- =====================================================
-local gui = Instance.new("ScreenGui", player.PlayerGui)
-gui.Name = "AnchorSpeedGodUI"
+-----------------------
+-- STATE
+-----------------------
+local AutoKill = false
+local SpeedValue = 16 -- default Roblox
+
+-----------------------
+-- UI
+-----------------------
+local gui = Instance.new("ScreenGui")
+gui.Name = "RaftCombatUI"
 gui.ResetOnSpawn = false
+gui.Parent = player:WaitForChild("PlayerGui")
 
--- ===== ANCHOR BUTTON (TOGGLE) =====
-local anchorBtn = Instance.new("TextButton", gui)
-anchorBtn.Size = UDim2.new(0,50,0,50)
-anchorBtn.Position = UDim2.new(0,10,0.5,-25)
-anchorBtn.Text = "⚓"
-anchorBtn.TextSize = 26
-anchorBtn.Font = Enum.Font.GothamBold
-anchorBtn.BackgroundColor3 = Color3.fromRGB(30,30,30)
-anchorBtn.TextColor3 = Color3.new(1,1,1)
-anchorBtn.BorderSizePixel = 0
-anchorBtn.Active = true
-anchorBtn.Draggable = true
-Instance.new("UICorner", anchorBtn).CornerRadius = UDim.new(1,0)
+local toggleBtn = Instance.new("TextButton")
+toggleBtn.Size = UDim2.new(0,55,0,55)
+toggleBtn.Position = UDim2.new(0,10,0.5,-27)
+toggleBtn.Text = "⚔️"
+toggleBtn.TextSize = 22
+toggleBtn.BackgroundColor3 = Color3.fromRGB(30,30,30)
+toggleBtn.TextColor3 = Color3.new(1,1,1)
+toggleBtn.BorderSizePixel = 0
+toggleBtn.Active = true
+toggleBtn.Draggable = true
+toggleBtn.Parent = gui
 
--- ===== MAIN FRAME =====
-local frame = Instance.new("Frame", gui)
-frame.Size = UDim2.new(0,270,0,260)
-frame.Position = UDim2.new(0,70,0.5,-130)
+local frame = Instance.new("Frame")
+frame.Size = UDim2.new(0,260,0,210)
+frame.Position = UDim2.new(0,80,0.5,-105)
 frame.BackgroundColor3 = Color3.fromRGB(20,20,20)
-frame.BorderSizePixel = 0
 frame.Visible = false
-Instance.new("UICorner", frame).CornerRadius = UDim.new(0,12)
+frame.BorderSizePixel = 0
+frame.Parent = gui
+Instance.new("UICorner", frame).CornerRadius = UDim.new(0,10)
 
-local title = Instance.new("TextLabel", frame)
-title.Size = UDim2.new(1,0,0,40)
+local title = Instance.new("TextLabel")
+title.Size = UDim2.new(1,0,0,35)
 title.BackgroundTransparency = 1
-title.Text = "Speed & God Mode"
+title.Text = "Combat & Survival"
 title.Font = Enum.Font.GothamBold
 title.TextSize = 16
 title.TextColor3 = Color3.new(1,1,1)
+title.Parent = frame
 
--- =====================================================
--- BUTTON CREATOR
--- =====================================================
-local function makeBtn(text, y)
-    local b = Instance.new("TextButton", frame)
-    b.Size = UDim2.new(1,-20,0,40)
-    b.Position = UDim2.new(0,10,0,y)
-    b.Text = text
-    b.Font = Enum.Font.Gotham
-    b.TextSize = 14
-    b.BackgroundColor3 = Color3.fromRGB(40,40,40)
-    b.TextColor3 = Color3.new(1,1,1)
-    b.BorderSizePixel = 0
-    Instance.new("UICorner", b).CornerRadius = UDim.new(0,8)
-    return b
-end
+-- Auto Kill Button
+local killBtn = Instance.new("TextButton")
+killBtn.Size = UDim2.new(1,-20,0,40)
+killBtn.Position = UDim2.new(0,10,0,45)
+killBtn.Text = "Auto Kill : OFF"
+killBtn.Font = Enum.Font.Gotham
+killBtn.TextSize = 14
+killBtn.BackgroundColor3 = Color3.fromRGB(40,40,40)
+killBtn.TextColor3 = Color3.new(1,1,1)
+killBtn.BorderSizePixel = 0
+killBtn.Parent = frame
+Instance.new("UICorner", killBtn).CornerRadius = UDim.new(0,8)
 
-local speedBtn = makeBtn("Speed : OFF", 45)
-local godBtn   = makeBtn("God Mode : OFF", 90)
-
--- =====================================================
--- SPEED SLIDER (0-100)
--- =====================================================
-local sliderFrame = Instance.new("Frame", frame)
-sliderFrame.Size = UDim2.new(1,-20,0,60)
-sliderFrame.Position = UDim2.new(0,10,0,140)
-sliderFrame.BackgroundTransparency = 1
-
-local speedLabel = Instance.new("TextLabel", sliderFrame)
-speedLabel.Size = UDim2.new(1,0,0,20)
+-- Speed Label
+local speedLabel = Instance.new("TextLabel")
+speedLabel.Size = UDim2.new(1,-20,0,25)
+speedLabel.Position = UDim2.new(0,10,0,95)
 speedLabel.BackgroundTransparency = 1
-speedLabel.Text = "Speed : 16"
+speedLabel.Text = "Speed: 16"
 speedLabel.Font = Enum.Font.Gotham
-speedLabel.TextSize = 14
+speedLabel.TextSize = 13
 speedLabel.TextColor3 = Color3.new(1,1,1)
+speedLabel.Parent = frame
 
-local bar = Instance.new("Frame", sliderFrame)
-bar.Size = UDim2.new(1,0,0,8)
-bar.Position = UDim2.new(0,0,0,30)
-bar.BackgroundColor3 = Color3.fromRGB(60,60,60)
-bar.BorderSizePixel = 0
-Instance.new("UICorner", bar).CornerRadius = UDim.new(1,0)
+-- Speed Slider (0-100)
+local sliderBg = Instance.new("Frame")
+sliderBg.Size = UDim2.new(1,-20,0,12)
+sliderBg.Position = UDim2.new(0,10,0,125)
+sliderBg.BackgroundColor3 = Color3.fromRGB(60,60,60)
+sliderBg.BorderSizePixel = 0
+sliderBg.Parent = frame
+Instance.new("UICorner", sliderBg).CornerRadius = UDim.new(0,6)
 
-local fill = Instance.new("Frame", bar)
-fill.Size = UDim2.new(0.16,0,1,0)
-fill.BackgroundColor3 = Color3.fromRGB(0,170,255)
-fill.BorderSizePixel = 0
-Instance.new("UICorner", fill).CornerRadius = UDim.new(1,0)
+local sliderFill = Instance.new("Frame")
+sliderFill.Size = UDim2.new(0,0,1,0)
+sliderFill.BackgroundColor3 = Color3.fromRGB(120,180,255)
+sliderFill.BorderSizePixel = 0
+sliderFill.Parent = sliderBg
+Instance.new("UICorner", sliderFill).CornerRadius = UDim.new(0,6)
 
--- =====================================================
--- ANCHOR TOGGLE LOGIC
--- =====================================================
-anchorBtn.MouseButton1Click:Connect(function()
+-----------------------
+-- UI LOGIC
+-----------------------
+toggleBtn.MouseButton1Click:Connect(function()
     frame.Visible = not frame.Visible
 end)
 
--- =====================================================
--- SPEED LOGIC
--- =====================================================
-speedBtn.MouseButton1Click:Connect(function()
-    SpeedOn = not SpeedOn
-    speedBtn.Text = SpeedOn and "Speed : ON" or "Speed : OFF"
-    hum.WalkSpeed = SpeedOn and CurrentSpeed or 16
+killBtn.MouseButton1Click:Connect(function()
+    AutoKill = not AutoKill
+    killBtn.Text = AutoKill and "Auto Kill : ON" or "Auto Kill : OFF"
 end)
 
+-- Slider drag
 local dragging = false
-local function updateSpeed(x)
-    local scale = math.clamp(
-        (x - bar.AbsolutePosition.X) / bar.AbsoluteSize.X,
-        0, 1
-    )
-    CurrentSpeed = math.floor(scale * 100)
-    fill.Size = UDim2.new(scale,0,1,0)
-    speedLabel.Text = "Speed : "..CurrentSpeed
-    if SpeedOn then
-        hum.WalkSpeed = CurrentSpeed
+sliderBg.InputBegan:Connect(function(i)
+    if i.UserInputType == Enum.UserInputType.MouseButton1 then dragging = true end
+end)
+sliderBg.InputEnded:Connect(function(i)
+    if i.UserInputType == Enum.UserInputType.MouseButton1 then dragging = false end
+end)
+RunService.RenderStepped:Connect(function()
+    if dragging then
+        local mouse = game:GetService("UserInputService"):GetMouseLocation().X
+        local pos = math.clamp((mouse - sliderBg.AbsolutePosition.X) / sliderBg.AbsoluteSize.X, 0, 1)
+        sliderFill.Size = UDim2.new(pos,0,1,0)
+        SpeedValue = math.floor(pos * 100)
+        speedLabel.Text = "Speed: "..SpeedValue
+        hum.WalkSpeed = SpeedValue
     end
+end)
+
+-----------------------
+-- ANTI DAMAGE (REALISTIC)
+-----------------------
+if ENABLE_ANTIDAMAGE then
+    hum.HealthChanged:Connect(function(hp)
+        if hp < hum.MaxHealth then
+            hum.Health = hum.MaxHealth
+        end
+    end)
 end
 
-bar.InputBegan:Connect(function(i)
-    if i.UserInputType == Enum.UserInputType.MouseButton1
-    or i.UserInputType == Enum.UserInputType.Touch then
-        dragging = true
-        updateSpeed(i.Position.X)
+-----------------------
+-- AUTO KILL (NEARBY)
+-----------------------
+task.spawn(function()
+    while task.wait(KILL_INTERVAL) do
+        if AutoKill and hrp then
+            for _,npc in pairs(workspace:GetDescendants()) do
+                local nh = npc:FindFirstChildOfClass("Humanoid")
+                local nhrp = npc:FindFirstChild("HumanoidRootPart")
+                if nh and nhrp and npc ~= char and nh.Health > 0 then
+                    local dist = (nhrp.Position - hrp.Position).Magnitude
+                    if dist <= KILL_RADIUS then
+                        -- attempt client-side damage
+                        pcall(function()
+                            nh.Health = 0
+                        end)
+                    end
+                end
+            end
+        end
     end
 end)
 
-UIS.InputChanged:Connect(function(i)
-    if dragging and (i.UserInputType == Enum.UserInputType.MouseMovement
-    or i.UserInputType == Enum.UserInputType.Touch) then
-        updateSpeed(i.Position.X)
-    end
+pcall(function()
+    game.StarterGui:SetCore("SendNotification", {
+        Title = "Loaded",
+        Text = "⚔️ Auto Kill | ❤️ Anti-Damage | ⚡ Speed",
+        Duration = 5
+    })
 end)
 
-UIS.InputEnded:Connect(function(i)
-    if i.UserInputType == Enum.UserInputType.MouseButton1
-    or i.UserInputType == Enum.UserInputType.Touch then
-        dragging = false
-    end
-end)
-
--- =====================================================
--- GOD MODE LOGIC
--- =====================================================
-godBtn.MouseButton1Click:Connect(function()
-    GodMode = not GodMode
-    godBtn.Text = GodMode and "God Mode : ON" or "God Mode : OFF"
-    if GodMode then
-        hum.Health = hum.MaxHealth
-    end
-end)
-
-hum.HealthChanged:Connect(function(h)
-    if GodMode and h < hum.MaxHealth then
-        hum.Health = hum.MaxHealth
-    end
-end)
-
-RunService.Stepped:Connect(function()
-    if GodMode and hum then
-        hum.Health = hum.MaxHealth
-    end
-end)
-
-print("✅ Anchor Toggle UI Loaded")
+print("✅ Combat & Survival script loaded")

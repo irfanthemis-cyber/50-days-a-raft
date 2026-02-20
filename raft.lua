@@ -1,5 +1,5 @@
 -- =====================================================
--- 50 DAYS ON A RAFT - FINAL BUTTON COLLECT SCRIPT
+-- 50 DAYS ON A RAFT - COLLECT ONLY (VIDEO FIX)
 -- =====================================================
 
 -- ===== SERVICES =====
@@ -16,15 +16,15 @@ bindChar()
 player.CharacterAdded:Connect(bindChar)
 
 -- ===== SETTINGS =====
-local MAX_RADIUS = 150
-local STEP_RADIUS = {25, 50, 80, 120, 150}
-local ACTION_DELAY = 0.25
+local STEP_RADIUS = {20, 40, 70, 100, 150}
+local TELEPORT_DELAY = 0.35   -- mobile safe
+local ACTION_DELAY = 0.4
 
 -- =====================================================
 -- GUI
 -- =====================================================
 local gui = Instance.new("ScreenGui")
-gui.Name = "RaftFinalUI"
+gui.Name = "RaftCollectUI"
 gui.ResetOnSpawn = false
 gui.Parent = player:WaitForChild("PlayerGui")
 
@@ -57,88 +57,75 @@ local function makeBtn(text, y)
     return b
 end
 
-local btnA = makeBtn("A - Collect (Collect)", 50)
-local btnB = makeBtn("B - Open (Bench / Chest)", 95)
-local btnC = makeBtn("C - Use / Interact", 140)
+local btnA = makeBtn("A - Collect Loot", 50)
+local btnB = makeBtn("B - Disabled", 95)
+local btnC = makeBtn("C - Disabled", 140)
 local btnD = makeBtn("D - Collect ALL", 185)
 
 -- =====================================================
--- CORE FUNCTIONS (GAME-ACCURATE)
+-- CORE FUNCTIONS (SESUI VIDEO)
 -- =====================================================
 
 local function getBasePart(prompt)
     if prompt.Parent:IsA("BasePart") then
         return prompt.Parent
     end
-
     if prompt.Parent:IsA("Model") then
         return prompt.Parent:FindFirstChildWhichIsA("BasePart")
     end
-
     if prompt.Parent.Parent and prompt.Parent.Parent:IsA("Model") then
         return prompt.Parent.Parent:FindFirstChildWhichIsA("BasePart")
     end
 end
 
-local function interactByAction(actionFilter)
+-- ===== COLLECT ONLY (TIDAK OPEN BENCH) =====
+local function collectOnly()
     task.spawn(function()
         if not hrp then return end
 
         for _,radius in ipairs(STEP_RADIUS) do
             for _,p in ipairs(workspace:GetDescendants()) do
-                if p:IsA("ProximityPrompt") and p.Enabled then
-                    if actionFilter(p) then
-                        local part = getBasePart(p)
-                        if part then
-                            local dist = (part.Position - hrp.Position).Magnitude
-                            if dist <= radius then
-                                pcall(function()
-                                    -- TELEPORT SANGAT DEKAT (WAJIB DI GAME INI)
-                                    hrp.CFrame = part.CFrame * CFrame.new(0,0,-1)
-                                    task.wait(0.15)
-                                    fireproximityprompt(p, p.HoldDuration)
-                                    task.wait(ACTION_DELAY)
-                                end)
-                            end
+                if p:IsA("ProximityPrompt")
+                and p.Enabled
+                and p.ActionText == "Collect" then
+
+                    local part = getBasePart(p)
+                    if part then
+                        local dist = (part.Position - hrp.Position).Magnitude
+                        if dist <= radius then
+                            pcall(function()
+                                -- teleport nempel ke item
+                                hrp.CFrame = part.CFrame * CFrame.new(0,0,-0.5)
+                                task.wait(TELEPORT_DELAY)
+
+                                fireproximityprompt(p, p.HoldDuration)
+                                task.wait(ACTION_DELAY)
+                            end)
                         end
                     end
                 end
             end
-            task.wait(0.2)
+            task.wait(0.3)
         end
     end)
 end
 
 -- =====================================================
--- BUTTON LOGIC (SESUAI GAME ASLI)
+-- BUTTON LOGIC
 -- =====================================================
 
--- A - Collect (barrel, floating loot, crate)
+-- A - COLLECT SAJA
 btnA.MouseButton1Click:Connect(function()
-    interactByAction(function(p)
-        return p.ActionText == "Collect"
-    end)
+    collectOnly()
 end)
 
--- B - Open (crafting bench, chest, storage)
-btnB.MouseButton1Click:Connect(function()
-    interactByAction(function(p)
-        return p.ActionText == "Open"
-    end)
-end)
+-- B & C DIMATIKAN (BIAR TIDAK GANGGU)
+btnB.AutoButtonColor = false
+btnC.AutoButtonColor = false
 
--- C - Use / Interact (campfire, furnace, purifier)
-btnC.MouseButton1Click:Connect(function()
-    interactByAction(function(p)
-        return p.ActionText ~= "Collect" and p.ActionText ~= "Open"
-    end)
-end)
-
--- D - ALL
+-- D - SAMA SEPERTI A (COLLECT ALL YANG VALID)
 btnD.MouseButton1Click:Connect(function()
-    interactByAction(function()
-        return true
-    end)
+    collectOnly()
 end)
 
-print("✅ 50 Days on a Raft - FINAL SCRIPT LOADED")
+print("✅ 50 Days on a Raft - COLLECT ONLY SCRIPT LOADED")

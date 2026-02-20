@@ -1,38 +1,39 @@
 -- =====================================================
--- AUTO COLLECT WOOD (WATER PICKUP FIX)
--- 50 DAYS ON A RAFT
+-- SPEED (0-100) + GOD MODE
 -- =====================================================
 
 local Players = game:GetService("Players")
-local player = Players.LocalPlayer
+local UIS = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
 
-local char, hrp
+local player = Players.LocalPlayer
+local char, hum, hrp
+
+-- ===== CHARACTER SAFE =====
 local function bindChar()
     char = player.Character or player.CharacterAdded:Wait()
+    hum = char:WaitForChild("Humanoid")
     hrp = char:WaitForChild("HumanoidRootPart")
 end
 bindChar()
 player.CharacterAdded:Connect(bindChar)
 
 -- ===== STATE =====
-local AutoWood = false
-local Busy = false
-
--- ===== SETTINGS =====
-local SEARCH_RADIUS = 160
-local TOUCH_TIME = 0.15
-local LOOP_DELAY = 1.2
+local SpeedOn = false
+local GodMode = false
+local CurrentSpeed = 16
+local MaxHealth = 100
 
 -- =====================================================
 -- GUI
 -- =====================================================
 local gui = Instance.new("ScreenGui", player.PlayerGui)
-gui.Name = "AutoWoodWaterUI"
+gui.Name = "SpeedGodUI"
 gui.ResetOnSpawn = false
 
 local frame = Instance.new("Frame", gui)
-frame.Size = UDim2.new(0,260,0,150)
-frame.Position = UDim2.new(0,20,0.5,-75)
+frame.Size = UDim2.new(0,270,0,260)
+frame.Position = UDim2.new(0,20,0.5,-130)
 frame.BackgroundColor3 = Color3.fromRGB(20,20,20)
 frame.BorderSizePixel = 0
 Instance.new("UICorner", frame).CornerRadius = UDim.new(0,12)
@@ -40,92 +41,129 @@ Instance.new("UICorner", frame).CornerRadius = UDim.new(0,12)
 local title = Instance.new("TextLabel", frame)
 title.Size = UDim2.new(1,0,0,40)
 title.BackgroundTransparency = 1
-title.Text = "Auto Collect Wood (Water)"
+title.Text = "Speed & God Mode"
 title.Font = Enum.Font.GothamBold
 title.TextSize = 16
 title.TextColor3 = Color3.new(1,1,1)
 
-local toggle = Instance.new("TextButton", frame)
-toggle.Size = UDim2.new(1,-20,0,45)
-toggle.Position = UDim2.new(0,10,0,50)
-toggle.Text = "Auto Wood : OFF"
-toggle.Font = Enum.Font.Gotham
-toggle.TextSize = 14
-toggle.BackgroundColor3 = Color3.fromRGB(40,40,40)
-toggle.TextColor3 = Color3.new(1,1,1)
-toggle.BorderSizePixel = 0
-Instance.new("UICorner", toggle).CornerRadius = UDim.new(0,8)
-
-local status = Instance.new("TextLabel", frame)
-status.Size = UDim2.new(1,-20,0,25)
-status.Position = UDim2.new(0,10,0,105)
-status.BackgroundTransparency = 1
-status.Text = "Status : Idle"
-status.Font = Enum.Font.Gotham
-status.TextSize = 13
-status.TextColor3 = Color3.fromRGB(200,200,200)
-
--- =====================================================
--- CORE LOGIC
--- =====================================================
-
-local function isWood(part)
-    local n = part.Name:lower()
-    return n:find("wood") or n:find("plank") or n:find("log")
+-- ======================================
+-- BUTTON CREATOR
+-- ======================================
+local function makeBtn(text, y)
+    local b = Instance.new("TextButton", frame)
+    b.Size = UDim2.new(1,-20,0,40)
+    b.Position = UDim2.new(0,10,0,y)
+    b.Text = text
+    b.Font = Enum.Font.Gotham
+    b.TextSize = 14
+    b.BackgroundColor3 = Color3.fromRGB(40,40,40)
+    b.TextColor3 = Color3.new(1,1,1)
+    b.BorderSizePixel = 0
+    Instance.new("UICorner", b).CornerRadius = UDim.new(0,8)
+    return b
 end
 
-local function collectWoodWater()
-    if Busy or not hrp then return end
-    Busy = true
-    status.Text = "Status : Collecting Wood"
+local speedBtn = makeBtn("Speed : OFF", 45)
+local godBtn   = makeBtn("God Mode : OFF", 90)
 
-    local root = hrp
+-- ======================================
+-- SPEED SLIDER (0-100)
+-- ======================================
+local sliderFrame = Instance.new("Frame", frame)
+sliderFrame.Size = UDim2.new(1,-20,0,60)
+sliderFrame.Position = UDim2.new(0,10,0,140)
+sliderFrame.BackgroundTransparency = 1
 
-    for _,obj in ipairs(workspace:GetDescendants()) do
-        if not AutoWood then break end
+local speedLabel = Instance.new("TextLabel", sliderFrame)
+speedLabel.Size = UDim2.new(1,0,0,20)
+speedLabel.BackgroundTransparency = 1
+speedLabel.Text = "Speed : 16"
+speedLabel.Font = Enum.Font.Gotham
+speedLabel.TextSize = 14
+speedLabel.TextColor3 = Color3.new(1,1,1)
 
-        if obj:IsA("BasePart") and isWood(obj) then
-            local dist = (obj.Position - root.Position).Magnitude
-            if dist <= SEARCH_RADIUS then
-                pcall(function()
-                    -- teleport dekat wood
-                    root.CFrame = obj.CFrame * CFrame.new(0,0,-0.3)
-                    task.wait(0.1)
+local bar = Instance.new("Frame", sliderFrame)
+bar.Size = UDim2.new(1,0,0,8)
+bar.Position = UDim2.new(0,0,0,30)
+bar.BackgroundColor3 = Color3.fromRGB(60,60,60)
+bar.BorderSizePixel = 0
+Instance.new("UICorner", bar).CornerRadius = UDim.new(1,0)
 
-                    -- 🔥 SIMULASI SENTUHAN (INI KUNCI)
-                    firetouchinterest(root, obj, 0)
-                    task.wait(TOUCH_TIME)
-                    firetouchinterest(root, obj, 1)
+local fill = Instance.new("Frame", bar)
+fill.Size = UDim2.new(0.16,0,1,0)
+fill.BackgroundColor3 = Color3.fromRGB(0,170,255)
+fill.BorderSizePixel = 0
+Instance.new("UICorner", fill).CornerRadius = UDim.new(1,0)
 
-                    task.wait(0.25)
-                end)
-            end
-        end
+-- ======================================
+-- SPEED LOGIC
+-- ======================================
+speedBtn.MouseButton1Click:Connect(function()
+    SpeedOn = not SpeedOn
+    speedBtn.Text = SpeedOn and "Speed : ON" or "Speed : OFF"
+    hum.WalkSpeed = SpeedOn and CurrentSpeed or 16
+end)
+
+local dragging = false
+local function updateSpeed(x)
+    local scale = math.clamp(
+        (x - bar.AbsolutePosition.X) / bar.AbsoluteSize.X,
+        0, 1
+    )
+    CurrentSpeed = math.floor(scale * 100)
+    fill.Size = UDim2.new(scale,0,1,0)
+    speedLabel.Text = "Speed : "..CurrentSpeed
+    if SpeedOn then
+        hum.WalkSpeed = CurrentSpeed
     end
-
-    Busy = false
-    status.Text = "Status : Idle"
 end
 
--- =====================================================
--- LOOP
--- =====================================================
-task.spawn(function()
-    while task.wait(LOOP_DELAY) do
-        if AutoWood then
-            collectWoodWater()
-        end
+bar.InputBegan:Connect(function(i)
+    if i.UserInputType == Enum.UserInputType.MouseButton1
+    or i.UserInputType == Enum.UserInputType.Touch then
+        dragging = true
+        updateSpeed(i.Position.X)
     end
 end)
 
--- =====================================================
--- BUTTON
--- =====================================================
-toggle.MouseButton1Click:Connect(function()
-    AutoWood = not AutoWood
-    toggle.Text = AutoWood and "Auto Wood : ON" or "Auto Wood : OFF"
-    status.Text = AutoWood and "Status : Running" or "Status : Idle"
-    Busy = false
+UIS.InputChanged:Connect(function(i)
+    if dragging and (i.UserInputType == Enum.UserInputType.MouseMovement
+    or i.UserInputType == Enum.UserInputType.Touch) then
+        updateSpeed(i.Position.X)
+    end
 end)
 
-print("✅ Auto Collect Wood (Water) FIXED LOADED")
+UIS.InputEnded:Connect(function(i)
+    if i.UserInputType == Enum.UserInputType.MouseButton1
+    or i.UserInputType == Enum.UserInputType.Touch then
+        dragging = false
+    end
+end)
+
+-- ======================================
+-- GOD MODE LOGIC (ANTI DAMAGE)
+-- ======================================
+godBtn.MouseButton1Click:Connect(function()
+    GodMode = not GodMode
+    godBtn.Text = GodMode and "God Mode : ON" or "God Mode : OFF"
+
+    if GodMode then
+        MaxHealth = hum.MaxHealth
+        hum.Health = MaxHealth
+    end
+end)
+
+hum.HealthChanged:Connect(function(h)
+    if GodMode and h < hum.MaxHealth then
+        hum.Health = hum.MaxHealth
+    end
+end)
+
+-- Anti instant kill
+RunService.Stepped:Connect(function()
+    if GodMode and hum then
+        hum.Health = hum.MaxHealth
+    end
+end)
+
+print("✅ Speed 0–100 + God Mode Loaded")

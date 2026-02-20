@@ -1,5 +1,5 @@
 -- =====================================================
--- SPEED (0-100) + GOD MODE
+-- SPEED (0-100) + GOD MODE + TOGGLE UI
 -- =====================================================
 
 local Players = game:GetService("Players")
@@ -22,20 +22,35 @@ player.CharacterAdded:Connect(bindChar)
 local SpeedOn = false
 local GodMode = false
 local CurrentSpeed = 16
-local MaxHealth = 100
 
 -- =====================================================
 -- GUI
 -- =====================================================
 local gui = Instance.new("ScreenGui", player.PlayerGui)
-gui.Name = "SpeedGodUI"
+gui.Name = "SpeedGodToggleUI"
 gui.ResetOnSpawn = false
 
+-- ===== TOGGLE BUTTON (SELALU TAMPIL) =====
+local toggleBtn = Instance.new("TextButton", gui)
+toggleBtn.Size = UDim2.new(0,45,0,45)
+toggleBtn.Position = UDim2.new(0,10,0.5,-22)
+toggleBtn.Text = "≡"
+toggleBtn.TextSize = 24
+toggleBtn.Font = Enum.Font.GothamBold
+toggleBtn.BackgroundColor3 = Color3.fromRGB(30,30,30)
+toggleBtn.TextColor3 = Color3.new(1,1,1)
+toggleBtn.BorderSizePixel = 0
+toggleBtn.Active = true
+toggleBtn.Draggable = true
+Instance.new("UICorner", toggleBtn).CornerRadius = UDim.new(1,0)
+
+-- ===== MAIN FRAME =====
 local frame = Instance.new("Frame", gui)
 frame.Size = UDim2.new(0,270,0,260)
-frame.Position = UDim2.new(0,20,0.5,-130)
+frame.Position = UDim2.new(0,70,0.5,-130)
 frame.BackgroundColor3 = Color3.fromRGB(20,20,20)
 frame.BorderSizePixel = 0
+frame.Visible = true
 Instance.new("UICorner", frame).CornerRadius = UDim.new(0,12)
 
 local title = Instance.new("TextLabel", frame)
@@ -46,9 +61,9 @@ title.Font = Enum.Font.GothamBold
 title.TextSize = 16
 title.TextColor3 = Color3.new(1,1,1)
 
--- ======================================
+-- =====================================================
 -- BUTTON CREATOR
--- ======================================
+-- =====================================================
 local function makeBtn(text, y)
     local b = Instance.new("TextButton", frame)
     b.Size = UDim2.new(1,-20,0,40)
@@ -66,9 +81,9 @@ end
 local speedBtn = makeBtn("Speed : OFF", 45)
 local godBtn   = makeBtn("God Mode : OFF", 90)
 
--- ======================================
+-- =====================================================
 -- SPEED SLIDER (0-100)
--- ======================================
+-- =====================================================
 local sliderFrame = Instance.new("Frame", frame)
 sliderFrame.Size = UDim2.new(1,-20,0,60)
 sliderFrame.Position = UDim2.new(0,10,0,140)
@@ -95,9 +110,16 @@ fill.BackgroundColor3 = Color3.fromRGB(0,170,255)
 fill.BorderSizePixel = 0
 Instance.new("UICorner", fill).CornerRadius = UDim.new(1,0)
 
--- ======================================
+-- =====================================================
+-- TOGGLE UI LOGIC
+-- =====================================================
+toggleBtn.MouseButton1Click:Connect(function()
+    frame.Visible = not frame.Visible
+end)
+
+-- =====================================================
 -- SPEED LOGIC
--- ======================================
+-- =====================================================
 speedBtn.MouseButton1Click:Connect(function()
     SpeedOn = not SpeedOn
     speedBtn.Text = SpeedOn and "Speed : ON" or "Speed : OFF"
@@ -140,16 +162,15 @@ UIS.InputEnded:Connect(function(i)
     end
 end)
 
--- ======================================
--- GOD MODE LOGIC (ANTI DAMAGE)
--- ======================================
+-- =====================================================
+-- GOD MODE LOGIC
+-- =====================================================
 godBtn.MouseButton1Click:Connect(function()
     GodMode = not GodMode
     godBtn.Text = GodMode and "God Mode : ON" or "God Mode : OFF"
 
     if GodMode then
-        MaxHealth = hum.MaxHealth
-        hum.Health = MaxHealth
+        hum.Health = hum.MaxHealth
     end
 end)
 
@@ -159,11 +180,10 @@ hum.HealthChanged:Connect(function(h)
     end
 end)
 
--- Anti instant kill
 RunService.Stepped:Connect(function()
     if GodMode and hum then
         hum.Health = hum.MaxHealth
     end
 end)
 
-print("✅ Speed 0–100 + God Mode Loaded")
+print("✅ Speed + God Mode + Toggle UI Loaded")

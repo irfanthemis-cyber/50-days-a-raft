@@ -1,5 +1,5 @@
 -- ======================================
--- 50 DAYS ON A RAFT - AUTO COLLECT FINAL
+-- 50 DAYS ON A RAFT - AUTO COLLECT FINAL FIX
 -- ======================================
 
 -- ===== SERVICES =====
@@ -11,18 +11,26 @@ local char, hrp
 local function bindChar()
     char = player.Character or player.CharacterAdded:Wait()
     hrp = char:WaitForChild("HumanoidRootPart")
+
+    -- reset state saat respawn / masuk game
+    Busy = false
+    if AutoCollect then
+        task.wait(1)
+        StartCFrame = hrp.CFrame
+    end
 end
-bindChar()
+
 player.CharacterAdded:Connect(bindChar)
+bindChar()
 
 -- ===== STATE =====
-local AutoCollect = false
-local StartCFrame = nil
-local Busy = false
+AutoCollect = false
+StartCFrame = nil
+Busy = false
 
 -- ===== SETTINGS (BOLEH EDIT) =====
-local SEARCH_RADIUS = 60      -- jarak cari item
-local LOOP_DELAY = 0.5        -- kecepatan loop
+local SEARCH_RADIUS = 60
+local LOOP_DELAY = 0.5
 
 -- ======================================
 -- GUI
@@ -78,22 +86,24 @@ autoBtn.MouseButton1Click:Connect(function()
     AutoCollect = not AutoCollect
     autoBtn.Text = AutoCollect and "Auto Collect : ON" or "Auto Collect : OFF"
 
-    if AutoCollect then
-        StartCFrame = hrp.CFrame   -- simpan posisi SEKALI
+    if AutoCollect and hrp then
+        StartCFrame = hrp.CFrame
         Busy = false
     else
-        Busy = false               -- reset biar bisa ON lagi
+        Busy = false
     end
 end)
 
 -- ======================================
--- FIND NEAREST PROMPT
+-- FIND NEAREST PROMPT (FIXED)
 -- ======================================
 local function getNearestPrompt()
+    if not hrp then return end
+
     local bestPrompt, bestPart
     local shortest = SEARCH_RADIUS
 
-    for _,p in pairs(workspace:GetDescendants()) do
+    for _,p in ipairs(workspace:GetDescendants()) do
         if p:IsA("ProximityPrompt") and p.Enabled then
             local c = p.Parent
             local part =
@@ -102,7 +112,7 @@ local function getNearestPrompt()
                 or (c.Parent and c.Parent:FindFirstChildWhichIsA("BasePart"))
 
             if part then
-                local dist = (part.Position - StartCFrame.Position).Magnitude
+                local dist = (part.Position - hrp.Position).Magnitude
                 if dist < shortest then
                     shortest = dist
                     bestPrompt = p
@@ -112,37 +122,41 @@ local function getNearestPrompt()
         end
     end
 
-    if bestPrompt then
-        return bestPrompt, bestPart
-    end
+    return bestPrompt, bestPart
 end
 
 -- ======================================
--- MAIN LOOP (STABLE)
+-- MAIN LOOP (ANTI STUCK)
 -- ======================================
 task.spawn(function()
     while task.wait(LOOP_DELAY) do
-        if AutoCollect and StartCFrame and not Busy then
-            local prompt, part = getNearestPrompt()
-            if prompt and part then
-                Busy = true
-                pcall(function()
-                    -- ke item
-                    hrp.CFrame = part.CFrame + Vector3.new(0,2,0)
-                    task.wait(0.2)
+        if not AutoCollect or Busy or not hrp or not StartCFrame then
+            continue
+        end
 
-                    -- HOLD PROMPT (INI KUNCI!)
-                    fireproximityprompt(prompt, prompt.HoldDuration)
+        local prompt, part = getNearestPrompt()
+        if prompt and part then
+            Busy = true
 
-                    task.wait(0.25)
+            pcall(function()
+                -- teleport ke item
+                hrp.CFrame = part.CFrame + Vector3.new(0,2,0)
+                task.wait(0.2)
 
-                    -- balik ke posisi awal
+                -- hold prompt
+                fireproximityprompt(prompt, prompt.HoldDuration)
+
+                task.wait(0.25)
+
+                -- balik ke posisi awal
+                if hrp then
                     hrp.CFrame = StartCFrame
-                end)
-                Busy = false
-            end
+                end
+            end)
+
+            Busy = false
         end
     end
 end)
 
-print("✅ Auto Collect FINAL loaded")
+print("✅ Auto Collect FINAL FIX loaded")
